@@ -1,1 +1,10 @@
-for(var i = 0; i < 20; i = i + 1) print(i);
+class Foo{
+    bar(){
+        print("Hello " * 5);
+    }
+}
+
+var x = Foo();
+x.name = 5;
+
+x.bar();

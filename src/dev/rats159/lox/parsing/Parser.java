@@ -1,7 +1,8 @@
 package dev.rats159.lox.parsing;
 
 import dev.rats159.lox.Lox;
-import dev.rats159.lox.interpreting.Interpreter;
+import dev.rats159.lox.constructs.LoxBoolean;
+import dev.rats159.lox.constructs.LoxNil;
 import dev.rats159.lox.lexing.Token;
 import dev.rats159.lox.lexing.TokenType;
 
@@ -165,7 +166,7 @@ public class Parser {
       }
 
 
-      if (condition == null) condition = new Expression.Literal(true);
+      if (condition == null) condition = new Expression.Literal(new LoxBoolean(true));
       body = new Statement.While(condition, body);
 
       if (initializer != null) {
@@ -356,9 +357,9 @@ public class Parser {
    }
 
    private Expression primary() {
-      if (match(FALSE)) return new Expression.Literal(false);
-      if (match(TRUE)) return new Expression.Literal(true);
-      if (match(NIL)) return new Expression.Literal(null);
+      if (match(FALSE)) return new Expression.Literal(new LoxBoolean(false));
+      if (match(TRUE)) return new Expression.Literal(new LoxBoolean(true));
+      if (match(NIL)) return new Expression.Literal(new LoxNil());
 
       if (match(NUMBER, STRING)) {
          return new Expression.Literal(previous().literal());

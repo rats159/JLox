@@ -18,7 +18,7 @@ public class LoxFunction implements LoxCallable {
     }
 
     @Override
-    public Object call(Interpreter interpreter, List<Object> arguments) {
+    public LoxObject call(Interpreter interpreter, List<LoxObject> arguments) {
         VariableEnvironment environment = new VariableEnvironment(this.closure);
         for (int i = 0; i < this.decl.parameters().size(); i++) {
             environment.define(this.decl.parameters().get(i).lexeme(), arguments.get(i));
@@ -26,7 +26,7 @@ public class LoxFunction implements LoxCallable {
 
         try {
             interpreter.executeBlock(this.decl.body(), environment);
-        } catch (Return returnValue) { // ... weird...
+        } catch (LoxReturn returnValue) { // ... weird...
             if(this.isInitializer){
                 return closure.getAt(0,"this");
             }
@@ -54,5 +54,20 @@ public class LoxFunction implements LoxCallable {
         environment.define("this", loxInstance);
         return new LoxFunction(this.decl, environment, this.isInitializer);
 
+    }
+
+    @Override
+    public String toLangString() {
+        return this.decl.name().lexeme();
+    }
+
+    @Override
+    public String type() {
+        return "function";
+    }
+
+    @Override
+    public boolean isTruthy() {
+        return true;
     }
 }

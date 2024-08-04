@@ -35,7 +35,7 @@ public class LoxClass implements LoxCallable {
     }
 
     @Override
-    public Object call(Interpreter interpreter, List<Object> args) {
+    public LoxObject call(Interpreter interpreter, List<LoxObject> args) {
         LoxInstance instance = new LoxInstance(this);
 
         LoxFunction initializer = findMethod("init");
@@ -51,5 +51,20 @@ public class LoxClass implements LoxCallable {
         LoxFunction initializer = findMethod("init");
         if (initializer == null) return 0;
         return initializer.arity();
+    }
+
+    @Override
+    public String toLangString() {
+        return this.name;
+    }
+
+    @Override
+    public String type() {
+        return "class";
+    }
+
+    @Override
+    public boolean isTruthy() {
+        return true;
     }
 }

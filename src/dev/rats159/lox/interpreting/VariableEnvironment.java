@@ -1,13 +1,14 @@
 package dev.rats159.lox.interpreting;
 
-import dev.rats159.lox.constructs.LoxRuntimeError;
+import dev.rats159.lox.constructs.LoxObject;
+import dev.rats159.lox.errors.LoxRuntimeError;
 import dev.rats159.lox.lexing.Token;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class VariableEnvironment {
-   private final Map<String, Object> values = new HashMap<>();
+   private final Map<String, LoxObject> values = new HashMap<>();
    public final VariableEnvironment enclosing;
 
    public VariableEnvironment() {
@@ -18,11 +19,11 @@ public class VariableEnvironment {
       this.enclosing = enclosing;
    }
 
-   public void define(String name, Object value) {
+   public void define(String name, LoxObject value) {
       values.put(name, value);
    }
 
-   public Object get(Token name) {
+   public LoxObject get(Token name) {
       if (values.containsKey(name.lexeme())) {
          return values.get(name.lexeme());
       } else if (this.enclosing != null) {
@@ -32,7 +33,7 @@ public class VariableEnvironment {
       }
    }
 
-   public void assign(Token name, Object value) {
+   public void assign(Token name, LoxObject value) {
       if (values.containsKey(name.lexeme())) {
          values.put(name.lexeme(), value);
       } else if (enclosing != null) {
@@ -42,7 +43,7 @@ public class VariableEnvironment {
       }
    }
 
-   public Object getAt(int distance, String name) {
+   public LoxObject getAt(int distance, String name) {
       return ancestor(distance).values.get(name);
    }
 

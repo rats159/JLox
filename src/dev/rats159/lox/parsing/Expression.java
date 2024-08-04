@@ -1,5 +1,6 @@
 package dev.rats159.lox.parsing;
 
+import dev.rats159.lox.constructs.LoxObject;
 import dev.rats159.lox.lexing.Token;
 
 import java.util.List;
@@ -23,7 +24,7 @@ public sealed interface Expression permits Expression.Assignment, Expression.Bin
       }
    }
 
-   record Literal(Object value) implements Expression {
+   record Literal(LoxObject value) implements Expression {
       @Override
       public <R> R accept(Visitor<R> visitor) {
          return visitor.visitLiteralExpression(this);

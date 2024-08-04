@@ -1,6 +1,9 @@
 package dev.rats159.lox.lexing;
 
 import dev.rats159.lox.Lox;
+import dev.rats159.lox.constructs.LoxNumber;
+import dev.rats159.lox.constructs.LoxObject;
+import dev.rats159.lox.constructs.LoxString;
 
 import java.util.*;
 
@@ -133,7 +136,7 @@ public class Tokenizer {
 
       // Trim the surrounding quotes.
       String value = source.substring(start + 1, current - 1);
-      this.addToken(STRING, value);
+      this.addToken(STRING, new LoxString(value));
    }
 
    private boolean isDigit(char c) {
@@ -156,7 +159,7 @@ public class Tokenizer {
          while (isDigit(peek())) advance();
       }
 
-      addToken(NUMBER, Double.parseDouble(source.substring(start, current)));
+      addToken(NUMBER, new LoxNumber(Double.parseDouble(source.substring(start, current))));
    }
 
    private void identifier() {
@@ -216,7 +219,7 @@ public class Tokenizer {
       addToken(type, null);
    }
 
-   private void addToken(TokenType type, Object literal) {
+   private void addToken(TokenType type, LoxObject literal) {
       String text = source.substring(start, current);
       tokens.add(new Token(type, text, literal, line));
    }

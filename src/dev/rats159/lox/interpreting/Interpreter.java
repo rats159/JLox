@@ -2,6 +2,8 @@ package dev.rats159.lox.interpreting;
 
 import dev.rats159.lox.Lox;
 import dev.rats159.lox.constructs.*;
+import dev.rats159.lox.errors.LoxRuntimeError;
+import dev.rats159.lox.errors.LoxTypeError;
 import dev.rats159.lox.lexing.Token;
 import dev.rats159.lox.lexing.TokenType;
 import dev.rats159.lox.parsing.Expression;
@@ -12,45 +14,35 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Interpreter implements Expression.Visitor<Object>, Statement.Visitor<Void> {
+public class Interpreter implements Expression.Visitor<LoxObject>, Statement.Visitor<Void> {
 
     public final VariableEnvironment globals = new VariableEnvironment();
     private VariableEnvironment environment = globals;
     private final Map<Expression, Integer> locals = new HashMap<>();
 
     public Interpreter() {
-        globals.define("clock", new LoxCallable() {
+        globals.define("clock", new LoxBuiltin(0) {
             @Override
-            public Object call(Interpreter interpreter, List<Object> args) {
-                return (double) System.currentTimeMillis();
+            public String name() {
+                return "clock";
             }
 
             @Override
-            public int arity() {
-                return 0;
-            }
-
-            @Override
-            public String toString() {
-                return "<native clock fn>";
+            public LoxObject call(Interpreter interpreter, List<LoxObject> args) {
+                return new LoxNumber(System.currentTimeMillis());
             }
         });
 
-        globals.define("print", new LoxCallable() {
+        globals.define("print", new LoxBuiltin(1) {
             @Override
-            public Object call(Interpreter interpreter, List<Object> args) {
-                System.out.println(stringify(args.getFirst()));
+            public String name() {
+                return "print";
+            }
+
+            @Override
+            public LoxObject call(Interpreter interpreter, List<LoxObject> args) {
+                System.out.println(args.getFirst().toLangString());
                 return null;
-            }
-
-            @Override
-            public int arity() {
-                return 1;
-            }
-
-            @Override
-            public String toString() {
-                return "<native print fn>";
             }
         });
     }
@@ -65,122 +57,146 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
         }
     }
 
-    private String stringify(Object object) {
-        if (object == null) return "nil";
-
-        if (object instanceof Double) {
-            String text = object.toString();
-            if (text.endsWith(".0")) {
-                text = text.substring(0, text.length() - 2);
-            }
-            return text;
-        }
-
-        return object.toString();
-    }
-
     @Override
-    public Object visitBinaryExpression(Expression.Binary expression) {
-        Object left = evaluate(expression.left());
-        Object right = evaluate(expression.right());
+    public LoxObject visitBinaryExpression(Expression.Binary expression) {
+        LoxObject left = evaluate(expression.left());
+        LoxObject right = evaluate(expression.right());
 
         return switch (expression.operator().type()) {
             case MINUS -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left - (double) right;
+                if(left instanceof LoxSubtractable l && right instanceof LoxSubtractable r){
+                    yield l.subtract(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Unsubtractable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
             case SLASH -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left / (double) right;
+                if(left instanceof LoxDivisible l && right instanceof LoxDivisible r){
+                    yield l.divide(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Undivisible types `%s` and `%s`".formatted(left.type(),right.type()));
+
             }
             case STAR -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left * (double) right;
+                try{
+                    if(left instanceof LoxMultipliable l && right instanceof LoxMultipliable r){
+                        yield l.multiply(r);
+                    }
+                }catch(LoxTypeError err){
+                    throw new LoxRuntimeError(expression.operator(),err.getMessage());
+                }
+                throw new LoxRuntimeError(expression.operator(), "Unmultipliable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
             case MOD -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left % (double) right;
+                if(left instanceof LoxModuloable l && right instanceof LoxModuloable r){
+                    yield l.mod(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Unmoduloable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
             case PLUS -> {
-                if (left instanceof Double l && right instanceof Double r) {
-                    yield l + r;
+                try{
+                    if (left instanceof LoxAddable l && right instanceof LoxAddable r) {
+                        yield l.add(r);
+                    }
+                }catch(LoxTypeError err){
+                    throw new LoxRuntimeError(expression.operator(),err.getMessage());
                 }
 
-                if (left instanceof String l && right instanceof String r) {
-                    yield l + r;
-                }
-
-                throw new LoxRuntimeError(expression.operator(), "Operands must be mutually addable. Lox supports adding numbers to numbers and strings to strings");
+                throw new LoxRuntimeError(expression.operator(), "Unaddable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
             case GREATER -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left > (double) right;
+                if (left instanceof LoxComparable l && right instanceof LoxComparable r) {
+                    yield l.greater(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Incomparable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
             case GREATER_EQUAL -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left >= (double) right;
+                if (left instanceof LoxComparable l && right instanceof LoxComparable r) {
+                    yield l.greaterOrEqual(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Incomparable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
             case LESS -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left < (double) right;
+                if (left instanceof LoxComparable l && right instanceof LoxComparable r) {
+                    yield l.less(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Incomparable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
             case LESS_EQUAL -> {
-                ensureNumberOperands(expression.operator(), left, right);
-                yield (double) left <= (double) right;
+                if (left instanceof LoxComparable l && right instanceof LoxComparable r) {
+                    yield l.lessOrEqual(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Incomparable types `%s` and `%s`".formatted(left.type(),right.type()));
             }
-            case BANG_EQUAL -> !isEqual(left, right);
-            case EQUAL_EQUAL -> isEqual(left, right);
+            case BANG_EQUAL -> {
+                if (left instanceof LoxEquateable l && right instanceof LoxEquateable r) {
+                    yield l.unequal(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Inequatable types `%s` and `%s`".formatted(left.type(),right.type()));
+            }
+            case EQUAL_EQUAL -> {
+                if (left instanceof LoxEquateable l && right instanceof LoxEquateable r) {
+                    yield l.equal(r);
+                }
+                throw new LoxRuntimeError(expression.operator(), "Inequatable types `%s` and `%s`".formatted(left.type(),right.type()));
+            }
             default -> null;
         };
     }
 
     @Override
-    public Object visitGroupingExpression(Expression.Grouping expression) {
+    public LoxObject visitGroupingExpression(Expression.Grouping expression) {
         return evaluate(expression.inner());
     }
 
     @Override
-    public Object visitLiteralExpression(Expression.Literal literal) {
+    public LoxObject visitLiteralExpression(Expression.Literal literal) {
         return literal.value();
     }
 
     @Override
-    public Object visitUnaryExpression(Expression.Unary expr) {
-        Object right = evaluate(expr.right());
+    public LoxObject visitUnaryExpression(Expression.Unary expr) {
+        LoxObject right = evaluate(expr.right());
 
         return switch (expr.operator().type()) {
-            case MINUS -> {
-                ensureNumberOperand(expr.operator(), right);
-                yield -(double) right;
+            case MINUS-> {
+                if (right instanceof LoxNegatable r) {
+                    yield r.negate();
+                }
+                throw new LoxRuntimeError(expr.operator(), "Unnegatable type `%s`".formatted(right.type()));
             }
-            case BANG -> !isTruthy(right);
+            case BANG -> {
+                if (right instanceof LoxInvertable r) {
+                    yield r.invert();
+                }
+                throw new LoxRuntimeError(expr.operator(), "Uninvertable type `%s`".formatted(right.type()));
+            }
             default -> null; // Unreachable
         };
     }
 
     @Override
-    public Object visitVariableExpression(Expression.Variable variable) {
+    public LoxObject visitVariableExpression(Expression.Variable variable) {
         return lookUpVariable(variable.name(), variable);
     }
 
 
     @Override
-    public Object visitAssignmentExpression(Expression.Assignment assignment) {
-        Object value = evaluate(assignment.value());
+    public LoxObject visitAssignmentExpression(Expression.Assignment assignment) {
+        LoxObject value = evaluate(assignment.value());
         this.environment.assign(assignment.name(), value);
         return value;
     }
 
     @Override
-    public Object visitLogicalExpression(Expression.Logical logicalExpression) {
-        Object left = evaluate(logicalExpression.left());
+    public LoxObject visitLogicalExpression(Expression.Logical logicalExpression) {
+        LoxObject left = evaluate(logicalExpression.left());
 
         if (logicalExpression.operator().type() == TokenType.OR) {
-            if (isTruthy(left)) {
+            if (left.isTruthy()) {
                 return left;
             }
         } else /* AND */ {
-            if (!isTruthy(left)) {
+            if (!left.isTruthy()) {
                 return left;
             }
         }
@@ -190,10 +206,10 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
     }
 
     @Override
-    public Object visitCallExpression(Expression.Call call) {
-        Object callee = evaluate(call.callee());
+    public LoxObject visitCallExpression(Expression.Call call) {
+        LoxObject callee = evaluate(call.callee());
 
-        List<Object> args = new ArrayList<>();
+        List<LoxObject> args = new ArrayList<>();
         for (Expression argument : call.args()) {
             args.add(evaluate(argument));
         }
@@ -208,7 +224,7 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
     }
 
     @Override
-    public Object visitGetExpression(Expression.Get get) {
+    public LoxObject visitGetExpression(Expression.Get get) {
         Object obj = evaluate(get.object());
 
         if (obj instanceof LoxInstance instance) {
@@ -219,13 +235,13 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
     }
 
     @Override
-    public Object visitSetExpression(Expression.Set expr) {
-        Object object = evaluate(expr.object());
+    public LoxObject visitSetExpression(Expression.Set expr) {
+        LoxObject object = evaluate(expr.object());
 
         if (!(object instanceof LoxInstance inst)) {
             throw new LoxRuntimeError(expr.name(), "Only instances have fields.");
         } else {
-            Object value = evaluate(expr.value());
+            LoxObject value = evaluate(expr.value());
             inst.set(expr.name(), value);
             return value;
         }
@@ -233,12 +249,12 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
     }
 
     @Override
-    public Object visitThisExpression(Expression.This thisExpression) {
+    public LoxObject visitThisExpression(Expression.This thisExpression) {
         return lookUpVariable(thisExpression.keyword(), thisExpression);
     }
 
     @Override
-    public Object visitSuperExpression(Expression.Super expr) {
+    public LoxObject visitSuperExpression(Expression.Super expr) {
         int distance = locals.get(expr);
         LoxClass superclass = (LoxClass) environment.getAt(distance, "super");
 
@@ -252,33 +268,8 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
         return method.bind(object);
     }
 
-    private Object evaluate(Expression expr) {
+    private LoxObject evaluate(Expression expr) {
         return expr.accept(this);
-    }
-
-    private boolean isTruthy(Object object) {
-        if (object == null) return false;
-        if (object instanceof Boolean b) return b;
-        return true;
-    }
-
-    private boolean isEqual(Object a, Object b) {
-        if (a == null && b == null) return true;
-        if (a == null) return false;
-
-        return a.equals(b);
-    }
-
-    private void ensureNumberOperand(Token operator, Object operand) {
-        if (operand instanceof Double) return;
-        throw new LoxRuntimeError(operator, "Operand must be a number.");
-    }
-
-    private void ensureNumberOperands(Token operator, Object left, Object right) {
-        if (left instanceof Double && right instanceof Double) return;
-
-        System.out.println(left + " " + right);
-        throw new LoxRuntimeError(operator, "Operands must be numbers.");
     }
 
     @Override
@@ -289,7 +280,7 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
 
     @Override
     public Void visitVariableStatement(Statement.VariableStatement statement) {
-        Object value = null;
+        LoxObject value = null;
 
         if (statement.initializer() != null) {
             value = evaluate(statement.initializer());
@@ -307,7 +298,7 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
 
     @Override
     public Void visitIfStatement(Statement.If ifStatement) {
-        if (isTruthy(evaluate(ifStatement.condition()))) {
+        if (evaluate(ifStatement.condition()).isTruthy()) {
             execute(ifStatement.thenBranch());
         } else if (ifStatement.elseBranch() != null) {
             execute(ifStatement.elseBranch());
@@ -318,7 +309,7 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
 
     @Override
     public Void visitWhileStatement(Statement.While whileStatement) {
-        while (isTruthy(evaluate(whileStatement.condition()))) {
+        while (evaluate(whileStatement.condition()).isTruthy()) {
             execute(whileStatement.body());
         }
         return null;
@@ -335,10 +326,10 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
 
     @Override
     public Void visitReturnStatement(Statement.Return returnStatement) {
-        Object value = null;
+        LoxObject value = null;
         if (returnStatement.value() != null) value = evaluate(returnStatement.value());
 
-        throw new Return(value);
+        throw new LoxReturn(value);
     }
 
     @Override
@@ -390,7 +381,7 @@ public class Interpreter implements Expression.Visitor<Object>, Statement.Visito
         this.locals.put(expr, depth);
     }
 
-    private Object lookUpVariable(Token name, Expression expression) {
+    private LoxObject lookUpVariable(Token name, Expression expression) {
         Integer distance = this.locals.getOrDefault(expression, null);
 
         if (distance != null) {
