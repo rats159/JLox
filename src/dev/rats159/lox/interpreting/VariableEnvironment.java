@@ -1,5 +1,6 @@
 package dev.rats159.lox.interpreting;
 
+import dev.rats159.lox.constructs.LoxRuntimeError;
 import dev.rats159.lox.lexing.Token;
 
 import java.util.HashMap;

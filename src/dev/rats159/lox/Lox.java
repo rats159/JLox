@@ -1,7 +1,7 @@
 package dev.rats159.lox;
 
 import dev.rats159.lox.interpreting.Interpreter;
-import dev.rats159.lox.interpreting.LoxRuntimeError;
+import dev.rats159.lox.constructs.LoxRuntimeError;
 import dev.rats159.lox.lexing.Token;
 import dev.rats159.lox.lexing.TokenType;
 import dev.rats159.lox.lexing.Tokenizer;
@@ -84,6 +84,8 @@ public class Lox {
       if(Lox.hadError){
          return;
       }
+
+      System.out.println(statements);
 
       Lox.interpreter.interpret(statements);
 

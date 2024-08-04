@@ -2,13 +2,12 @@ package dev.rats159.lox.parsing;
 
 import dev.rats159.lox.lexing.Token;
 
+import javax.swing.plaf.nimbus.State;
 import java.util.List;
 
-public sealed interface Statement permits Statement.Block, Statement.ExpressionStatement, Statement.Function, Statement.If, Statement.PrintStatement, Statement.Return, Statement.VariableStatement, Statement.While {
+public sealed interface Statement permits Statement.Block, Statement.Class, Statement.ExpressionStatement, Statement.Function, Statement.If, Statement.Return, Statement.VariableStatement, Statement.While {
    interface Visitor<T> {
       T visitExpressionStatement(ExpressionStatement statement);
-
-      T visitPrintStatement(PrintStatement statement);
 
       T visitVariableStatement(VariableStatement statement);
 
@@ -21,6 +20,8 @@ public sealed interface Statement permits Statement.Block, Statement.ExpressionS
       T visitFunction(Function function);
 
       T visitReturnStatement(Return returnStatement);
+
+      T visitClassStatement(Class classStatement);
    }
 
    <R> R accept(Visitor<R> visitor);
@@ -29,13 +30,6 @@ public sealed interface Statement permits Statement.Block, Statement.ExpressionS
       @Override
       public <R> R accept(Visitor<R> visitor) {
          return visitor.visitExpressionStatement(this);
-      }
-   }
-
-   record PrintStatement(Expression expression) implements Statement {
-      @Override
-      public <R> R accept(Visitor<R> visitor) {
-         return visitor.visitPrintStatement(this);
       }
    }
 
@@ -84,6 +78,14 @@ public sealed interface Statement permits Statement.Block, Statement.ExpressionS
       @Override
       public <R> R accept(Visitor<R> visitor) {
          return visitor.visitReturnStatement(this);
+      }
+   }
+
+   record Class(Token name, Expression.Variable superclass, List<Statement.Function> methods) implements Statement{
+
+      @Override
+      public <R> R accept(Visitor<R> visitor) {
+         return visitor.visitClassStatement(this);
       }
    }
 

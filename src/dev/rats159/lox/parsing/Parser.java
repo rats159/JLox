@@ -1,6 +1,7 @@
 package dev.rats159.lox.parsing;
 
 import dev.rats159.lox.Lox;
+import dev.rats159.lox.interpreting.Interpreter;
 import dev.rats159.lox.lexing.Token;
 import dev.rats159.lox.lexing.TokenType;
 
@@ -32,6 +33,7 @@ public class Parser {
 
    private Statement declaration() {
       try {
+         if (match(CLASS)) return classDecl();
          if (match(FUN)) return function("function");
          if (match(VAR)) return varDeclaration();
 
@@ -40,6 +42,26 @@ public class Parser {
          synchronize();
          return null;
       }
+   }
+
+   private Statement classDecl() {
+      Token name = consume(IDENTIFIER, "Expect class name.");
+      consume(LEFT_BRACE, "Expect '{' before class body.");
+
+      Expression.Variable superclass = null;
+      if(match(LESS)){
+         consume(IDENTIFIER, "Expect superclass name");
+         superclass = new Expression.Variable(previous());
+      }
+
+      List<Statement.Function> methods = new ArrayList<>();
+      while (!check(RIGHT_BRACE) && !isAtEnd()) {
+         methods.add(function("method"));
+      }
+
+      consume(RIGHT_BRACE, "Expect '}' after class body.");
+
+      return new Statement.Class(name, superclass, methods);
    }
 
    private Statement.Function function(String kind) {
@@ -82,9 +104,6 @@ public class Parser {
       }
       if (match(IF)) {
          return ifStatement();
-      }
-      if (match(PRINT)) {
-         return printStatement();
       }
       if (match(RETURN)) {
          return returnStatement();
@@ -143,7 +162,9 @@ public class Parser {
              new Statement.ExpressionStatement(increment)
            )
          );
+         System.out.println(increment);
       }
+
 
       if (condition == null) condition = new Expression.Literal(true);
       body = new Statement.While(condition, body);
@@ -187,12 +208,6 @@ public class Parser {
       Statement body = statement();
 
       return new Statement.While(condition, body);
-   }
-
-   private Statement printStatement() {
-      Expression value = expression();
-      consume(SEMICOLON, "Expect ';' after value.");
-      return new Statement.PrintStatement(value);
    }
 
    private Statement expressionStatement() {
@@ -239,6 +254,8 @@ public class Parser {
          if (expr instanceof Expression.Variable var) {
             Token name = var.name();
             return new Expression.Assignment(name, value);
+         }else if(expr instanceof Expression.Get get){
+            return new Expression.Set(get.object(),get.name(),value);
          }
 
          error(equals, "Invalid assignment target.");
@@ -311,6 +328,9 @@ public class Parser {
       while (true) {
          if (match(LEFT_PAREN)) {
             expr = finishCall(expr);
+         }else if (match(DOT)){
+            Token name = consume(IDENTIFIER, "Expected property name after '.'");
+            expr = new Expression.Get(expr, name);
          } else {
             break;
          }
@@ -345,6 +365,17 @@ public class Parser {
          return new Expression.Literal(previous().literal());
       }
 
+      if (match(SUPER)) {
+         Token keyword = previous();
+         consume(DOT, "Expect '.' after super");
+
+         Token method = consume(IDENTIFIER, "Expect identifier after super access");
+
+         return new Expression.Super(keyword,method);
+      }
+
+      if (match(THIS)) return new Expression.This(previous());
+
       if (match(IDENTIFIER)) {
          return new Expression.Variable(previous());
       }
@@ -377,7 +408,7 @@ public class Parser {
          if (previous().type() == SEMICOLON) return;
 
          switch (peek().type()) {
-            case CLASS, FUN, VAR, FOR, IF, WHILE, PRINT, RETURN -> {
+            case CLASS, FUN, VAR, FOR, IF, WHILE, RETURN -> {
                return;
             }
          }

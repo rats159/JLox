@@ -1,4 +1,6 @@
-package dev.rats159.lox.interpreting;
+package dev.rats159.lox.constructs;
+
+import dev.rats159.lox.interpreting.Interpreter;
 
 import java.util.List;
 

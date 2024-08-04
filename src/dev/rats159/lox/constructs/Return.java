@@ -1,4 +1,4 @@
-package dev.rats159.lox.interpreting;
+package dev.rats159.lox.constructs;
 
 public class Return extends RuntimeException{
    public final Object value;

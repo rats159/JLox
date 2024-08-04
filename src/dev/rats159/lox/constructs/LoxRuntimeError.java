@@ -1,4 +1,4 @@
-package dev.rats159.lox.interpreting;
+package dev.rats159.lox.constructs;
 
 import dev.rats159.lox.lexing.Token;
 
