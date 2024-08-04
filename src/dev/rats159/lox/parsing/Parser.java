@@ -162,7 +162,6 @@ public class Parser {
              new Statement.ExpressionStatement(increment)
            )
          );
-         System.out.println(increment);
       }
 
 
